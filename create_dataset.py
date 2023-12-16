@@ -34,13 +34,13 @@ if __name__ == "__main__":
     # Path to your dataset
     dataset_path = "/home/juancm/trento/SIV/siv_project/dataset_backup_13-12-2023/Powerlifting_Dataset"
     # Path to csv dataframe file
-    df_file = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/image_labels.csv"
+    df_file = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/image_labels_remapped.csv"
 
     # Let's check if the code from above works with a dataloader!
     
-    # we'll use a simple transformation
+    # stack expects each tensor to be equal size so we resize the images
     def resize_transform(img):
-        return resize(img, size=(400,400))
+        return resize(img, size=(224,224))
 
     dataset = CustomImageDataset(df_file, dataset_path, transform=resize_transform)
     train_dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
