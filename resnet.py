@@ -23,74 +23,48 @@ transform = transforms.Compose([
 ])
 
 image_labels = []
-# get the current working directory
-current_dir = os.path.abspath(os.getcwd())
+
+current_dir = os.getcwd()
 
 for gender in ("Men", "Women"):
-    # Path to your original dataset
     original_dataset_path = f'{current_dir}/dataset/{gender}/Original'
-    # Path to save augmented images
     augmented_dataset_path = f'{current_dir}/dataset/{gender}/Augmented'
 
     if not os.path.exists(augmented_dataset_path):
         os.makedirs(augmented_dataset_path)
 
-    # Traverse the directory structure
-    ## Pay attention to the fact that the images are in format RGBA, which is not supported by JPEG
-    ## Convert it to RGB before saving
-
     for root, dirs, files in os.walk(original_dataset_path):
-        # The subfolder name is the label
-        label = os.path.basename(root)
+        # Use the parent folder name as the label
+        label = os.path.basename(os.path.dirname(root))
 
         for file in files:
             if file.endswith('.jpg') or file.endswith('.png'):
-                # avoid using images that are unlabelled
                 if not "Screenshot" in file:
                     file_path = os.path.join(root, file)
                     image = Image.open(file_path)
-                    
-                    # Convert image to RGB if it has more than 3 channels
+
                     if image.mode != 'RGB':
                         image = image.convert('RGB')
-                    
-                    # Apply transformations and save augmented images
+
                     path_with_label = os.path.join(augmented_dataset_path, label)
+
                     for i in range(5):
                         if not os.path.exists(path_with_label):
                             os.makedirs(path_with_label)
-                        transformed_image = transform(image)
-                        # Convert the PyTorch tensor back to PIL Image
-                        transformed_image_pil = transforms.ToPILImage()(transformed_image)
-                        transformed_image_pil.save(os.path.join(augmented_dataset_path, f'{file.split(".")[0]}_transformed.jpg'))    # Create CSV file
-                        
-    # Path to your dataset (including augmented images)
-    dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset/{}'.format(gender)
 
-    # Traverse the directory structure
-    for root, dirs, files in os.walk(dataset_path):
-        label = os.path.basename(root)
-        for file in files:
-            if file.endswith('.jpg') or file.endswith('.png'):
-                # avoid using images that are unlabelled
-                if not "Screenshot" in file:
-                    # Get the paths from root
-                    path_from_root = os.path.relpath(os.path.join(root, file), dataset_path)
-                    # Add the file and label to the list
-                    image_labels.append((file, label, path_from_root))
+                        transformed_image = transform(image)
+                        transformed_filename = f'{file.split(".")[0]}_transformed_{i}.jpg'
+                        transformed_image_pil = transforms.ToPILImage()(transformed_image)
+                        transformed_image_pil.save(os.path.join(path_with_label, transformed_filename))
+
+                        # Add the correct label and path to the list
+                        relative_path = os.path.join(label, transformed_filename)
+                        image_labels.append((transformed_filename, label, relative_path))
+
 
 df = pd.DataFrame(image_labels, columns=["image", "label", "relative path"])
-
-new_labels = {'Frontal_Above_parallel':'above', 'Lateral_Above_parallel':'above',
-              'Frontal_Parallel':'parallel', 'Lateral_Parallel':'parallel',
-              'Frontal_Valid':'valid', 'Lateral_Valid':'valid',
-              'Frontal - Above parallel':'above', 'Lateral - Above parallel':'above',
-              'Frontal - Parallel':'parallel', 'Lateral - Parallel':'parallel',
-              'Frontal - Valid':'valid', 'Lateral - Valid':'valid'}
-
-# Save the DataFrame to a CSV file
-df['label'] = df['label'].replace(new_labels)
 df.to_csv('image_labels.csv', index=False)
+
 
 print(df)
 
