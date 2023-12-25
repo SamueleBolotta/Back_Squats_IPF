@@ -12,6 +12,7 @@ transform = transforms.Compose([
     transforms.RandomPerspective(distortion_scale=0.5, p=0.5, fill=0),  # Apply random perspective transformation
     transforms.RandomGrayscale(p=0.1),  # Convert images to grayscale with a probability of 0.1
     transforms.ColorJitter(brightness=0.5, contrast=0.5),  # Randomly change the brightness and contrast
+    # transforms.ToTensor(),
 ])
 image_labels = []
 # get teh current working directory
@@ -51,10 +52,11 @@ for sex in ("Men", "Women"):
                         if not os.path.exists(path_with_label):
                             os.makedirs(path_with_label)
                         transformed_image = transform(image)
+                        # transformed_image = transforms.ToPILImage()(transformed_image)
                         transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
     # Create CSV file
     # Path to your dataset (including augmented images)
-    dataset_path = '/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset/{}'.format(sex)
+    dataset_path = '/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset/'
     # Continue with the rest of your code
 
     # Traverse the directory structure
@@ -66,6 +68,8 @@ for sex in ("Men", "Women"):
                 if not "Screenshot" in file:
                     # Get the paths from root
                     path_from_root = os.path.relpath(os.path.join(root, file), dataset_path)
+                    # print(root)
+                    # print(path_from_root)
                     # Add the file and label to the list
                     image_labels.append((file, label, path_from_root))
 
@@ -94,5 +98,5 @@ def visualize_transformations(dataset, index):
     plt.show()
 
 # Visualize the transformations for the first ten images in the dataset
-for i in range(10):
-    visualize_transformations(dataset, i)
+# for i in range(10):
+#     visualize_transformations(dataset, i)
