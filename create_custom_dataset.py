@@ -32,9 +32,9 @@ class CustomImageDataset(Dataset):
 
 if __name__ == "__main__":
     # Path to your dataset
-    dataset_path = "/home/juancm/trento/SIV/siv_project/dataset_backup_13-12-2023/Powerlifting_Dataset"
+    dataset_path = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset"
     # Path to csv dataframe file
-    df_file = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/image_labels_remapped.csv"
+    df_file = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/image_labels.csv"
 
     # Let's check if the code from above works with a dataloader!
     
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     train_features, train_labels = next(iter(train_dataloader))
     print(f"Feature batch shape: {train_features.size()}")
     print(f"Labels batch shape: {len(train_labels)}") # train_labels is a tuple
-    
+    print(type(train_features))
     img = train_features[0]
     label = train_labels[0]
 
