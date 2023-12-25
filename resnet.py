@@ -12,6 +12,7 @@ from torchvision import models
 from torchvision import datasets
 from torchvision import transforms
 
+current_dir = os.getcwd()
 
 # Define transformations
 transform = transforms.Compose([
@@ -19,67 +20,28 @@ transform = transforms.Compose([
     transforms.RandomPerspective(distortion_scale=0.5, p=0.5, fill=0),  # Apply random perspective transformation
     transforms.RandomGrayscale(p=0.1),  # Convert images to grayscale with a probability of 0.1
     transforms.ColorJitter(brightness=0.5, contrast=0.5),  # Randomly change the brightness and contrast
-    transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
+    # transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
 ])
 
-image_labels = []
-
-current_dir = os.getcwd()
-
-for gender in ("Men", "Women"):
-    original_dataset_path = f'{current_dir}/dataset/{gender}/Original'
-    augmented_dataset_path = f'{current_dir}/dataset/{gender}/Augmented'
-
-    if not os.path.exists(augmented_dataset_path):
-        os.makedirs(augmented_dataset_path)
-
-    for root, dirs, files in os.walk(original_dataset_path):
-        # Use the parent folder name as the label
-        label = os.path.basename(os.path.dirname(root))
-
-        for file in files:
-            if file.endswith('.jpg') or file.endswith('.png'):
-                if not "Screenshot" in file:
-                    file_path = os.path.join(root, file)
-                    image = Image.open(file_path)
-
-                    if image.mode != 'RGB':
-                        image = image.convert('RGB')
-
-                    path_with_label = os.path.join(augmented_dataset_path, label)
-
-                    for i in range(5):
-                        if not os.path.exists(path_with_label):
-                            os.makedirs(path_with_label)
-
-                        transformed_image = transform(image)
-                        transformed_filename = f'{file.split(".")[0]}_transformed_{i}.jpg'
-                        transformed_image_pil = transforms.ToPILImage()(transformed_image)
-                        transformed_image_pil.save(os.path.join(path_with_label, transformed_filename))
-
-                        # Add the correct label and path to the list
-                        relative_path = os.path.join(label, transformed_filename)
-                        image_labels.append((transformed_filename, label, relative_path))
-
-
-df = pd.DataFrame(image_labels, columns=["image", "label", "relative path"])
-df.to_csv('image_labels.csv', index=False)
-
-
-print(df)
-
 # Create a dataset using the ImageFolder class
-dataset = datasets.ImageFolder(root=f'{current_dir}/dataset', transform=transform)
+# dataset = datasets.ImageFolder(root=f'{current_dir}/dataset', transform=transform)
+from create_custom_dataset import CustomImageDataset
+# Path to your dataset
+dataset_path = f'{current_dir}/dataset/'
+# Path to csv dataframe file
+df_file = f'{current_dir}/image_labels.csv'
+
+dataset = CustomImageDataset(df_file, dataset_path, transform=transform)
 
 # Function to visualize images
 def visualize_transformations(dataset, index):
     img, label = dataset[index]
-    #img = transforms.ToPILImage()(img)
+    img = transforms.ToPILImage()(img)
     plt.imshow(img)
-    plt.title(f'Label: {dataset.classes[label]}')
+    plt.title(f'Label: {label}')
     plt.show()
 
-
+visualize_transformations(dataset, 0)
 
 # Now we set up the training and validation data loaders
 from torch.utils.data import DataLoader, random_split
@@ -105,10 +67,11 @@ val_size = int(np.floor(validation_split * dataset_size))
 train_size = dataset_size - val_size
 
 # Create the training and validation datasets
-train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+# train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+generator1 = torch.Generator().manual_seed(42)
+train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1], generator=generator1)
 
 # Create the training and validation data loaders making sure that the data is tensors and not PIl images
-
 # Create the training and validation data loaders
 # Start the training loop
 def custom_collate(batch):
@@ -116,33 +79,17 @@ def custom_collate(batch):
     target = [item[1] for item in batch]
     
     # Convert PIL images to tensors
-    data = [transforms.ToTensor()(img) for img in data]
+    # data = [transforms.ToTensor()(img) for img in data]
+
+    # Replace label strings with label numeric values
+    target_map = {'valid': 0, 'above': 1, 'parallel': 2}
+    target = [target_map[label] for label in target]
 
     return torch.stack(data), torch.tensor(target)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
-
-# Now we set up the test data loader
-
-# Assuming you have a test_dataset, adjust the imports and dataset initialization accordingly
-# For example, if you have a directory structure similar to the training/validation data, you can use ImageFolder
-
-# Path to your test dataset
-test_dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/Women'
-
-# Define the transformation to convert PIL images to tensors for the test set
-test_transform = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize images to 224x224 (adjust as needed)
-    transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
-])
-
-# Create the test dataset
-test_dataset = datasets.ImageFolder(root=test_dataset_path, transform=test_transform)
-
-# Create the test data loader
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
 
 # Now we set up the model
 
@@ -168,13 +115,12 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.fc.parameters())
 
 # Define the number of epochs
-n_epochs = 25
+n_epochs = 75
 
 # Now we train the model
 
 # Initialize the best validation accuracy
 best_val_accuracy = 0
-
 
 for epoch in range(n_epochs):
     # Set the model to training mode
@@ -194,7 +140,7 @@ for epoch in range(n_epochs):
         optimizer.zero_grad()
         
         # Perform forward pass
-        output = model(data)
+        output = model(data.float())
         
         # Calculate the loss
         loss = criterion(output, target)
@@ -232,7 +178,7 @@ for epoch in range(n_epochs):
         target = target.to(device)
         
         # Perform forward pass
-        output = model(data)
+        output = model(data.float())
         
         # Calculate the loss
         loss = criterion(output, target)
@@ -269,7 +215,7 @@ for data, target in test_loader:
     target = target.to(device)
                                                                                                                            
     # Perform forward pass
-    output = model(data)
+    output = model(data.float())
                                                                                                                            
     # Calculate the loss
     loss = criterion(output, target)
@@ -290,8 +236,8 @@ test_accuracy = correct_predictions / len(test_dataset)
 # Print the test metrics
 print(f'Test loss: {test_loss:.4f} | Test accuracy: {test_accuracy:.4f}')
 
-# Now we save the model
-# Save the model
+# # Now we save the model
+# # Save the model
 torch.save(model.state_dict(), 'model.pt')
 
 # Now we load the model
