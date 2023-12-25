@@ -1,4 +1,3 @@
-#%%
 import os
 from PIL import Image
 import pandas as pd
@@ -15,7 +14,6 @@ from torchvision import transforms
 
 current_dir = os.getcwd()
 
-#%%
 # Define transformations
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
@@ -25,7 +23,6 @@ transform = transforms.Compose([
     # transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
 ])
 
-#%%
 # Create a dataset using the ImageFolder class
 # dataset = datasets.ImageFolder(root=f'{current_dir}/dataset', transform=transform)
 from create_custom_dataset import CustomImageDataset
@@ -45,7 +42,6 @@ def visualize_transformations(dataset, index):
     plt.show()
 
 visualize_transformations(dataset, 0)
-#%%
 
 # Now we set up the training and validation data loaders
 from torch.utils.data import DataLoader, random_split
@@ -74,17 +70,8 @@ train_size = dataset_size - val_size
 # train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 generator1 = torch.Generator().manual_seed(42)
 train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1], generator=generator1)
-#%%
-print(type(train_dataset))
-
-#%%
-# generator1 = torch.Generator().manual_seed(42)
-# generator2 = torch.Generator().manual_seed(42)
-# random_split(range(10), [3, 7], generator=generator1)
-# random_split(range(30), [0.3, 0.3, 0.4], generator=generator2)
 
 # Create the training and validation data loaders making sure that the data is tensors and not PIl images
-
 # Create the training and validation data loaders
 # Start the training loop
 def custom_collate(batch):
@@ -101,34 +88,14 @@ def custom_collate(batch):
     return torch.stack(data), torch.tensor(target)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
-# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, collate_fn=custom_collate)
-
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
-#%%
-next(iter(train_loader))
 
-#%%
-train_features, train_labels = next(iter(train_loader))
-print(f"Feature batch shape: {train_features.size()}")
-print(f"Labels batch shape: {len(train_labels)}") # train_labels is a tuple
-
-img = train_features[0]
-label = train_labels[0]
-
-#%%
-# use permute to flip the channels so that we have a shape (400,400,3). Before it was (3,400,400)
-plt.imshow(img.permute(1, 2, 0))
-
-plt.show()
-print(f"Label: {label}")
-#%%
 # Now we set up the model
 
 # Set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device
-#%%
+
 # Load the pretrained model
 model = models.resnet18(weights='IMAGENET1K_V1')
 
@@ -155,7 +122,6 @@ n_epochs = 75
 # Initialize the best validation accuracy
 best_val_accuracy = 0
 
-#%%
 for epoch in range(n_epochs):
     # Set the model to training mode
     model.train()
@@ -277,5 +243,3 @@ torch.save(model.state_dict(), 'model.pt')
 # Now we load the model
 # Load the model
 model.load_state_dict(torch.load('model.pt'))
-
-# %%
