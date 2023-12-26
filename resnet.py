@@ -1,15 +1,10 @@
 import os
-from PIL import Image
-import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
-
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import models
-from torchvision import datasets
 from torchvision import transforms
 
 current_dir = os.getcwd()
@@ -17,9 +12,9 @@ current_dir = os.getcwd()
 # Define transformations
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
-    transforms.RandomPerspective(distortion_scale=0.5, p=0.5, fill=0),  # Apply random perspective transformation
+    transforms.RandomPerspective(distortion_scale=0.1, p=0.5, fill=0),  # Apply random perspective transformation
     transforms.RandomGrayscale(p=0.1),  # Convert images to grayscale with a probability of 0.1
-    transforms.ColorJitter(brightness=0.5, contrast=0.5),  # Randomly change the brightness and contrast
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),  # Randomly change the brightness and contrast
     # transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
 ])
 
@@ -41,7 +36,7 @@ def visualize_transformations(dataset, index):
     plt.title(f'Label: {label}')
     plt.show()
 
-visualize_transformations(dataset, 0)
+#visualize_transformations(dataset, 0)
 
 # Now we set up the training and validation data loaders
 from torch.utils.data import DataLoader, random_split
@@ -52,22 +47,7 @@ batch_size = 32
 # Set the random seed
 random_seed = 42
 
-# Set the validation split
-validation_split = .2
-
-# Calculate the validation split based on the number of images in the dataset
-dataset_size = len(dataset)
-
-# Assuming you have a dataset class, adjust the imports and dataset initialization accordingly
-
-# Calculate the split based on the length of the dataset
-val_size = int(np.floor(validation_split * dataset_size))
-
-# Calculate the training split based on the length of the dataset
-train_size = dataset_size - val_size
-
 # Create the training and validation datasets
-# train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 generator1 = torch.Generator().manual_seed(42)
 train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1], generator=generator1)
 
@@ -77,9 +57,6 @@ train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1]
 def custom_collate(batch):
     data = [item[0] for item in batch]
     target = [item[1] for item in batch]
-    
-    # Convert PIL images to tensors
-    # data = [transforms.ToTensor()(img) for img in data]
 
     # Replace label strings with label numeric values
     target_map = {'valid': 0, 'above': 1, 'parallel': 2}
@@ -91,8 +68,6 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, co
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
 
-# Now we set up the model
-
 # Set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -103,9 +78,13 @@ model = models.resnet18(weights='IMAGENET1K_V1')
 for param in model.parameters():
     param.requires_grad = False
 
-# Change the final layer of the model
+
 #Three outputs: above parallel, parallel, below parallel
-model.fc = nn.Linear(512, 3)
+model.fc = nn.Sequential(
+    nn.Linear(512, 256),
+    nn.ReLU(),
+    nn.Linear(256, 3)
+)
 
 # Transfer the model to the GPU
 model.to(device)
@@ -115,12 +94,19 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.fc.parameters())
 
 # Define the number of epochs
-n_epochs = 75
+n_epochs = 50
 
-# Now we train the model
+# Define the learning rate scheduler
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
-# Initialize the best validation accuracy
+# Initialize lists to store losses for plotting
+train_losses = []
+val_losses = []
+
+# Initialize the best validation accuracy and early stopping parameters
 best_val_accuracy = 0
+patience = 10  # Number of epochs to wait for improvement
+counter = 0  # Counter for early stopping
 
 for epoch in range(n_epochs):
     # Set the model to training mode
@@ -195,11 +181,30 @@ for epoch in range(n_epochs):
     # Calculate the average validation loss and accuracy
     val_loss = running_loss / len(val_dataset)
     val_accuracy = correct_predictions / len(val_dataset)
-    
-    # Print the metrics for every epoch
-    print(f'Epoch: {epoch+1}/{n_epochs} | Train loss: {train_loss:.4f} | Train accuracy: {train_accuracy:.4f} | Val loss: {val_loss:.4f}')
 
-# Now we test the model
+    # Check if validation accuracy has improved
+    if val_accuracy > best_val_accuracy:
+        best_val_accuracy = val_accuracy
+        counter = 0  # Reset the counter since there's an improvement
+        # Save the model
+        torch.save(model.state_dict(), 'best_model.pt')
+    else:
+        counter += 1  # Increment the counter if there's no improvement
+
+    # Append losses for plotting
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+
+    # Step the learning rate scheduler
+    scheduler.step()
+    # Print metrics
+    print(f'Epoch: {epoch+1}/{n_epochs} | Train loss: {train_loss:.4f} | Train accuracy: {train_accuracy:.4f} | Val loss: {val_loss:.4f} | Val accuracy: {val_accuracy:.4f}')
+
+    # Check for early stopping
+    if counter >= patience:
+        print("Early stopping. No improvement in validation accuracy.")
+        break
+
 # Set the model to evaluation mode
 model.eval()
                                                                                                                            
@@ -237,9 +242,16 @@ test_accuracy = correct_predictions / len(test_dataset)
 print(f'Test loss: {test_loss:.4f} | Test accuracy: {test_accuracy:.4f}')
 
 # # Now we save the model
-# # Save the model
 torch.save(model.state_dict(), 'model.pt')
 
 # Now we load the model
-# Load the model
 model.load_state_dict(torch.load('model.pt'))
+
+# Plot training and validation losses
+plt.figure(figsize=(10, 7))
+plt.plot(train_losses, label='Training loss')
+plt.plot(val_losses, label='Validation loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()

@@ -9,13 +9,14 @@ import matplotlib.pyplot as plt
 # Define transformations
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
-    transforms.RandomPerspective(distortion_scale=0.5, p=0.5, fill=0),  # Apply random perspective transformation
+    transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),  # Apply random perspective transformation
     transforms.RandomGrayscale(p=0.1),  # Convert images to grayscale with a probability of 0.1
-    transforms.ColorJitter(brightness=0.5, contrast=0.5),  # Randomly change the brightness and contrast
+    transforms.ColorJitter(brightness=0.2, contrast=0.5),  # Randomly change the brightness and contrast
     # transforms.ToTensor(),
 ])
+
 image_labels = []
-# get teh current working directory
+# get the current working directory
 current_dir = os.path.abspath(os.getcwd())
 
 for sex in ("Men", "Women"):
@@ -56,8 +57,7 @@ for sex in ("Men", "Women"):
                         transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
     # Create CSV file
     # Path to your dataset (including augmented images)
-    dataset_path = '/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset/'
-    # Continue with the rest of your code
+    dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset'
 
     # Traverse the directory structure
     for root, dirs, files in os.walk(dataset_path):

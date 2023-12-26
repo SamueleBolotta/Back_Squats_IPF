@@ -32,9 +32,9 @@ class CustomImageDataset(Dataset):
 
 if __name__ == "__main__":
     # Path to your dataset
-    dataset_path = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset"
+    dataset_path = "/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset"
     # Path to csv dataframe file
-    df_file = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/image_labels.csv"
+    df_file = "/home/samuele/Documenti/GitHub/Back_Squats_IPF/image_labels.csv"
 
     # Let's check if the code from above works with a dataloader!
     

@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 # Path to your dataset
-dataset_path = "/home/juancm/trento/SIV/siv_project/dataset_backup_13-12-2023/Powerlifting_Dataset"
+dataset_path = "/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset"
 
 image_labels = []
 
