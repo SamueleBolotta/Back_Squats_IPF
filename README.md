@@ -13,13 +13,27 @@ The labels are three:
 
 ### Prerequisites
 
-TODO: prerequisites for the software here, such as Python version, libraries, or other dependencies
+Before you begin, ensure you have the following prerequisites installed on your system:
 
-### Installation
+    Python: This project requires Python 3.10.12. If you don't have it installed, download and install it from python.org.
 
-TODO: step-by-step instructions on how to install and set up the project locally.
+    Other Dependencies: requirements.txt 
+
+# Create a virtual environment 
+python3 -m venv your_env_name
+
+# Activate the virtual environment
+source your_env_name/bin/activate 
+
+# Navigate to your project directory
+cd path/to/your/project
+
+# Install project-specific dependencies (modify as needed)
+pip install -r requirements.txt
 
 ## Contact
+juan.camachomohedano@studenti.unitn.it
+bolottasamuele@gmail.com
 
 
 
