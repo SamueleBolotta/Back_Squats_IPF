@@ -5,14 +5,15 @@ import numpy as np
 import pandas as pd
 from torchvision import datasets
 import matplotlib.pyplot as plt
+from utils.utils import visualize_transformations
 
 # Define transformations
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
     transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),  # Apply random perspective transformation
     transforms.RandomGrayscale(p=0.1),  # Convert images to grayscale with a probability of 0.1
-    transforms.ColorJitter(brightness=0.2, contrast=0.5),  # Randomly change the brightness and contrast
-    # transforms.ToTensor(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),  # Randomly change the brightness and contrast
+    # transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
 ])
 
 image_labels = []
@@ -89,14 +90,6 @@ df.to_csv('image_labels.csv', index=False)
 # Create a dataset using the ImageFolder class
 dataset = datasets.ImageFolder(root=f'{current_dir}/dataset', transform=transform)
 
-# Function to visualize images
-def visualize_transformations(dataset, index):
-    img, label = dataset[index]
-    #img = transforms.ToPILImage()(img)
-    plt.imshow(img)
-    plt.title(f'Label: {dataset.classes[label]}')
-    plt.show()
-
-# Visualize the transformations for the first ten images in the dataset
-# for i in range(10):
-#     visualize_transformations(dataset, i)
+#Visualize the transformations for the first ten images in the dataset
+for i in range(10):
+    visualize_transformations(dataset, i)

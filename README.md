@@ -9,6 +9,8 @@ The labels are three:
 - "parallel" when the IPF referees gave a red light to the lift from that specific perspective
 - "above parallel" when the athlete was clearly above the parallel
 
+ The Neural Network architecture utilizes a pre-trained ResNet18 model with a customized fully connected layer.
+
 ## Getting Started
 
 ### Prerequisites
