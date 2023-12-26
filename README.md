@@ -33,6 +33,10 @@ Before you begin, ensure you have the following prerequisites installed on your 
 # Install project-specific dependencies (modify as needed)
     pip install -r requirements.txt
 
+# Run the main file
+
+    python3 image_classification_pipeline.py
+
 ## Contact
 juan.camachomohedano@studenti.unitn.it
 bolottasamuele@gmail.com
