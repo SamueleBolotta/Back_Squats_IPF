@@ -20,16 +20,16 @@ Before you begin, ensure you have the following prerequisites installed on your 
     Other Dependencies: requirements.txt 
 
 # Create a virtual environment 
-python3 -m venv your_env_name
+    python3 -m venv your_env_name
 
 # Activate the virtual environment
-source your_env_name/bin/activate 
+    source your_env_name/bin/activate 
 
 # Navigate to your project directory
-cd path/to/your/project
+    cd path/to/your/project
 
 # Install project-specific dependencies (modify as needed)
-pip install -r requirements.txt
+    pip install -r requirements.txt
 
 ## Contact
 juan.camachomohedano@studenti.unitn.it
