@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import models
 from torchvision import transforms
-from create_custom_dataset import CustomImageDataset
+from utils.utils import CustomImageDataset
 from torch.utils.data import DataLoader, random_split
 from utils.utils import custom_collate, plot_losses, visualize_transformations
 import os
