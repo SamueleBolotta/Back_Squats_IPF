@@ -160,3 +160,5 @@ webencodings==0.5.1
 websocket-client==1.7.0
 websockets==11.0.3
 widgetsnbextension==4.0.9
+scikit-learn==1.2.2
+seaborn==0.12.2
