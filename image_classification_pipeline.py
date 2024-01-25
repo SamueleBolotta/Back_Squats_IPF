@@ -1,4 +1,3 @@
-#%%
 import os
 import torch
 import torch.nn as nn
@@ -12,6 +11,7 @@ import os
 from PIL import Image
 import pandas as pd
 from torchvision import datasets
+from tqdm import tqdm
 
 # Define transformations
 transform = transforms.Compose([
@@ -23,15 +23,13 @@ transform = transforms.Compose([
 ])
 
 image_labels = []
-# get the current working directory
-current_dir = os.path.abspath(os.getcwd())
-#%%
-original_dataset = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset"
-#%%
+current_dir = os.path.abspath(os.getcwd()) # current working directory
+original_dataset = f"{current_dir}/dataset"
 train, test = build_rgb_dataset(original_dataset, train_ratio=0.8)
-save_images(train, "train")
-save_images(test, "test")
-#%%
+save_images(train, "train") # saved to path f"{current_dir}/dataset/{sex}/train"
+save_images(test, "test") # saved to path f"{current_dir}/dataset/{sex}/test"
+
+# create new augmented dataset saved to f"{current_dir}/dataset/{sex}/train_augmented"
 for sex in ("Men", "Women"):
     # Path to your original dataset
     original_dataset_path = f'{current_dir}/dataset/{sex}/train'
@@ -44,23 +42,17 @@ for sex in ("Men", "Women"):
     # Traverse the directory structure
     ## Pay attention to the fact that the images are in format RGBA, which is not supported by JPEG
     ## Convert it to RGB before saving
-
     for root, dirs, files in os.walk(original_dataset_path):
         # The subfolder name is the label
         label = os.path.basename(root)
 
-        for file in files:
+        for file in tqdm(files):
             if file.endswith('.jpg') or file.endswith('.png'):
                 # avoid using images that are unlabelled
                 if not "Screenshot" in file:
                     file_path = os.path.join(root, file)
                     image = Image.open(file_path)
 
-                    # Get the paths from root
-                    # path_from_root = os.path.relpath(os.path.join(root, file), f'{current_dir}/dataset/')
-                    # Add the file and label to the list
-                    # image_labels.append((file, label, path_from_root))
-                    
                     # Convert image to RGB if it has more than 3 channels
                     if image.mode != 'RGB':
                         image = image.convert('RGB')
@@ -70,28 +62,12 @@ for sex in ("Men", "Women"):
                     for i in range(5):
                         if not os.path.exists(path_with_label):
                             os.makedirs(path_with_label)
+                        
                         transformed_image = transform(image)
-                        # transformed_image = transforms.TioPILImage()(transformed_image)
                         transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
                         relative_path = os.path.relpath(os.path.join(path_with_label, f'{i}_{file}'), f'{current_dir}/dataset/')
                         image_labels.append((file, label, relative_path))
-    # Create CSV file
-    # Path to your dataset (including augmented images)
-    # dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset'
 
-    # # Traverse the directory structure
-    # for root, dirs, files in os.walk(dataset_path):
-    #     label = os.path.basename(root)
-    #     for file in files:
-    #         if file.endswith('.jpg') or file.endswith('.png'):
-    #             # avoid using images that are unlabelled
-    #             if not "Screenshot" in file:
-    #                 # Get the paths from root
-    #                 path_from_root = os.path.relpath(os.path.join(root, file), dataset_path)
-    #                 # Add the file and label to the list
-    #                 image_labels.append((file, label, path_from_root))
-
-#%%
 new_labels = {'Frontal_Above_parallel':'above', 'Lateral_Above_parallel':'above',
               'Frontal_Parallel':'parallel', 'Lateral_Parallel':'parallel',
               'Frontal_Valid':'valid', 'Lateral_Valid':'valid',
@@ -100,20 +76,16 @@ new_labels = {'Frontal_Above_parallel':'above', 'Lateral_Above_parallel':'above'
               'Frontal - Valid':'valid', 'Lateral - Valid':'valid'}
 
 # Save the DataFrame to a CSV file
-df = pd.DataFrame(image_labels, columns=["image", "label", "relative path"])
-df['label'] = df['label'].replace(new_labels)
-df.iloc[201]["relative path"]
-#%%
-df.to_csv('image_labels.csv', index=False)
+train_df = pd.DataFrame(image_labels, columns=["image", "label", "relative path"])
+train_df['label'] = train_df['label'].replace(new_labels)
+train_df.to_csv('image_labels.csv', index=False)
 
 # Path to your dataset
 dataset_path = f'{current_dir}/dataset/'
 # Path to csv dataframe file
 df_file = f'{current_dir}/image_labels.csv'
 dataset = CustomImageDataset(df_file, dataset_path, transform=transform)
-#%%
-dataset[5]
-#%%
+
 # Define the batch size
 batch_size = 32
 
@@ -127,9 +99,6 @@ train_dataset, val_dataset = random_split(dataset, [0.9, 0.1], generator=generat
 # Load the training and validation data in batches 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
-# test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
-next(iter(train_loader))
-#%%
 # Set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -273,8 +242,39 @@ model.eval()
 running_loss = 0.0
 correct_predictions = 0.0
 
-train, test = build_rgb_dataset(test, train_ratio=0.8)
-save_images(train, "train")
+# preprocess the test dataset for evaluation
+print("PREPROCESSING TEST DATASET FOR EVALUATION...")
+test_image_labels = []
+for sex in ("Men", "Women"):
+    # Path to your original dataset
+    original_dataset_path = f'{current_dir}/dataset/{sex}/test'
+
+    # Traverse the directory structure
+    ## Pay attention to the fact that the images are in format RGBA, which is not supported by JPEG
+    ## Convert it to RGB before saving
+    for root, dirs, files in os.walk(original_dataset_path):
+        # The subfolder name is the label
+        label = os.path.basename(root)
+
+        for file in tqdm(files):
+            if file.endswith('.jpg') or file.endswith('.png'):
+                # avoid using images that are unlabelled
+                if not "Screenshot" in file:
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, f'{current_dir}/dataset/')
+                    test_image_labels.append((file, label, relative_path))
+
+# Save the DataFrame to a CSV file
+df_test = pd.DataFrame(test_image_labels, columns=["image", "label", "relative path"])
+df_test['label'] = df_test['label'].replace(new_labels)
+df_test.to_csv('test_image_labels.csv', index=False)
+df_test_file = f'{current_dir}/test_image_labels.csv'
+
+test_transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize images to 224x224
+])
+test_dataset = CustomImageDataset(df_test_file, dataset_path, transform=test_transform)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=custom_collate)
 
 # Loop over the test data loader
 for data, target in test_loader:
@@ -311,5 +311,3 @@ model.load_state_dict(torch.load('model.pt'))
 
 # Call the function with the provided lists of train_losses and val_losses
 plot_losses(train_losses, val_losses)
-
-# %%
