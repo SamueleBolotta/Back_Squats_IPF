@@ -16,10 +16,11 @@ from tqdm import tqdm
 # Define transformations
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
-    transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),  # Apply random perspective transformation
-    transforms.RandomGrayscale(p=0.1),  # Convert images to grayscale with a probability of 0.1
-    transforms.ColorJitter(brightness=0.2, contrast=0.2),  # Randomly change the brightness and contrast
-    # transforms.ToTensor(),  # Convert the image to PyTorch Tensor data type
+    transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),
+    transforms.RandomGrayscale(p=0.1),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
 ])
 
 image_labels = []
@@ -62,11 +63,10 @@ for sex in ("Men", "Women"):
                     for i in range(5):
                         if not os.path.exists(path_with_label):
                             os.makedirs(path_with_label)
-                        
-                        transformed_image = transform(image)
-                        transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
-                        relative_path = os.path.relpath(os.path.join(path_with_label, f'{i}_{file}'), f'{current_dir}/dataset/')
-                        image_labels.append((file, label, relative_path))
+                            
+                        # Copy the original image to the augmented dataset
+                        original_img_dest = os.path.join(path_with_label, file)
+                        shutil.copy2(file_path, original_img_dest)
 
 new_labels = {'Frontal_Above_parallel':'above', 'Lateral_Above_parallel':'above',
               'Frontal_Parallel':'parallel', 'Lateral_Parallel':'parallel',
@@ -270,9 +270,13 @@ df_test['label'] = df_test['label'].replace(new_labels)
 df_test.to_csv('test_image_labels.csv', index=False)
 df_test_file = f'{current_dir}/test_image_labels.csv'
 
+# Define transformations for testing (no random transformations)
 test_transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
+
 test_dataset = CustomImageDataset(df_test_file, dataset_path, transform=test_transform)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=custom_collate)
 
