@@ -1,16 +1,15 @@
+#%%
 import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import models
 from torchvision import transforms
-from utils.utils import CustomImageDataset
+from utils.utils import CustomImageDataset, build_rgb_dataset, save_images
 from torch.utils.data import DataLoader, random_split
 from utils.utils import custom_collate, plot_losses, visualize_transformations
 import os
 from PIL import Image
-from torchvision import transforms
-import numpy as np
 import pandas as pd
 from torchvision import datasets
 
@@ -26,12 +25,18 @@ transform = transforms.Compose([
 image_labels = []
 # get the current working directory
 current_dir = os.path.abspath(os.getcwd())
-
+#%%
+original_dataset = "/home/juancm/trento/SIV/siv_project/Back_Squats_IPF/dataset"
+#%%
+train, test = build_rgb_dataset(original_dataset, train_ratio=0.8)
+save_images(train, "train")
+save_images(test, "test")
+#%%
 for sex in ("Men", "Women"):
     # Path to your original dataset
-    original_dataset_path = f'{current_dir}/dataset/{sex}/Original'
+    original_dataset_path = f'{current_dir}/dataset/{sex}/train'
     # Path to save augmented images
-    augmented_dataset_path = f'{current_dir}/dataset/{sex}/Augmented'
+    augmented_dataset_path = f'{current_dir}/dataset/{sex}/train_augmented'
 
     if not os.path.exists(augmented_dataset_path):
         os.makedirs(augmented_dataset_path)
@@ -50,6 +55,11 @@ for sex in ("Men", "Women"):
                 if not "Screenshot" in file:
                     file_path = os.path.join(root, file)
                     image = Image.open(file_path)
+
+                    # Get the paths from root
+                    # path_from_root = os.path.relpath(os.path.join(root, file), f'{current_dir}/dataset/')
+                    # Add the file and label to the list
+                    # image_labels.append((file, label, path_from_root))
                     
                     # Convert image to RGB if it has more than 3 channels
                     if image.mode != 'RGB':
@@ -61,28 +71,27 @@ for sex in ("Men", "Women"):
                         if not os.path.exists(path_with_label):
                             os.makedirs(path_with_label)
                         transformed_image = transform(image)
-                        # transformed_image = transforms.ToPILImage()(transformed_image)
+                        # transformed_image = transforms.TioPILImage()(transformed_image)
                         transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
+                        relative_path = os.path.relpath(os.path.join(path_with_label, f'{i}_{file}'), f'{current_dir}/dataset/')
+                        image_labels.append((file, label, relative_path))
     # Create CSV file
     # Path to your dataset (including augmented images)
-    dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset'
+    # dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset'
 
-    # Traverse the directory structure
-    for root, dirs, files in os.walk(dataset_path):
-        label = os.path.basename(root)
-        for file in files:
-            if file.endswith('.jpg') or file.endswith('.png'):
-                # avoid using images that are unlabelled
-                if not "Screenshot" in file:
-                    # Get the paths from root
-                    path_from_root = os.path.relpath(os.path.join(root, file), dataset_path)
-                    # print(root)
-                    # print(path_from_root)
-                    # Add the file and label to the list
-                    image_labels.append((file, label, path_from_root))
+    # # Traverse the directory structure
+    # for root, dirs, files in os.walk(dataset_path):
+    #     label = os.path.basename(root)
+    #     for file in files:
+    #         if file.endswith('.jpg') or file.endswith('.png'):
+    #             # avoid using images that are unlabelled
+    #             if not "Screenshot" in file:
+    #                 # Get the paths from root
+    #                 path_from_root = os.path.relpath(os.path.join(root, file), dataset_path)
+    #                 # Add the file and label to the list
+    #                 image_labels.append((file, label, path_from_root))
 
-df = pd.DataFrame(image_labels, columns=["image", "label", "relative path"])
-
+#%%
 new_labels = {'Frontal_Above_parallel':'above', 'Lateral_Above_parallel':'above',
               'Frontal_Parallel':'parallel', 'Lateral_Parallel':'parallel',
               'Frontal_Valid':'valid', 'Lateral_Valid':'valid',
@@ -91,21 +100,20 @@ new_labels = {'Frontal_Above_parallel':'above', 'Lateral_Above_parallel':'above'
               'Frontal - Valid':'valid', 'Lateral - Valid':'valid'}
 
 # Save the DataFrame to a CSV file
+df = pd.DataFrame(image_labels, columns=["image", "label", "relative path"])
 df['label'] = df['label'].replace(new_labels)
+df.iloc[201]["relative path"]
+#%%
 df.to_csv('image_labels.csv', index=False)
-
-# Create a dataset using the ImageFolder class
-dataset = datasets.ImageFolder(root=f'{current_dir}/dataset', transform=transform)
-
-# get the current working directory
-current_dir = os.getcwd()
 
 # Path to your dataset
 dataset_path = f'{current_dir}/dataset/'
 # Path to csv dataframe file
 df_file = f'{current_dir}/image_labels.csv'
 dataset = CustomImageDataset(df_file, dataset_path, transform=transform)
-
+#%%
+dataset[5]
+#%%
 # Define the batch size
 batch_size = 32
 
@@ -114,13 +122,14 @@ random_seed = 42
 
 # Create the training and validation datasets
 generator1 = torch.Generator().manual_seed(42)
-train_dataset, val_dataset, test_dataset = random_split(dataset, [0.8, 0.1, 0.1], generator=generator1)
+train_dataset, val_dataset = random_split(dataset, [0.9, 0.1], generator=generator1)
 
 # Load the training and validation data in batches 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=custom_collate)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
-
+# test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate)
+next(iter(train_loader))
+#%%
 # Set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -259,13 +268,15 @@ for epoch in range(n_epochs):
 
 # Set the model to evaluation mode
 model.eval()
-                                                                                                                           
+                                                                                                      
 # Initialize the running loss and correct predictions
 running_loss = 0.0
 correct_predictions = 0.0
-                                                                                                                           
-# Loop over the test data loader
 
+train, test = build_rgb_dataset(test, train_ratio=0.8)
+save_images(train, "train")
+
+# Loop over the test data loader
 for data, target in test_loader:
     # Transfer the data to the GPU
     data = data.to(device)
@@ -300,3 +311,5 @@ model.load_state_dict(torch.load('model.pt'))
 
 # Call the function with the provided lists of train_losses and val_losses
 plot_losses(train_losses, val_losses)
+
+# %%
