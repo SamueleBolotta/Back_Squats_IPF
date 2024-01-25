@@ -114,20 +114,28 @@ def custom_collate(batch):
     target = [target_map[label] for label in target]
 
     return torch.stack(data), torch.tensor(target)
+    
+# Tweaking the function to plot losses
 
-# Function to plot losses
-def plot_losses(train_losses, val_losses):
+def plot_losses(train_losses, val_losses, train_accuracy=None, val_accuracy=None):
     """
-    Plot the training and validation losses.
+    Plot the training and validation losses and optionally accuracies.
 
     Args:
         train_losses (list): List of training losses.
         val_losses (list): List of validation losses.
+        train_accuracy (list, optional): List of training accuracies.
+        val_accuracy (list, optional): List of validation accuracies.
     """
-    plt.figure(figsize=(10, 7))
-    plt.plot(train_losses, label='Training loss')
-    plt.plot(val_losses, label='Validation loss')
-    plt.xlabel('Epoch')
+    epochs = range(1, len(train_losses) + 1)
+    plt.figure(figsize=(12, 5))
+
+    # Plot losses
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, 'b-', label='Training Loss')
+    plt.plot(epochs, val_losses, 'r-', label='Validation Loss')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
@@ -161,3 +169,16 @@ if __name__ == "__main__":
 
     plt.show()
     print(f"Label: {label}")
+
+    # Plot accuracies if provided
+    if train_accuracy is not None and val_accuracy is not None:
+        plt.subplot(1, 2, 2)
+        plt.plot(epochs, train_accuracy, 'b-', label='Training Accuracy')
+        plt.plot(epochs, val_accuracy, 'r-', label='Validation Accuracy')
+        plt.title('Training and Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.legend()
+
+    plt.tight_layout()
+    plt.show()
