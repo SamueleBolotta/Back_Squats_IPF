@@ -57,23 +57,10 @@ images, labels = collect_images_labels(dataset_path, new_labels)
 print(f"Total images loaded: {len(images)}")
 
 # Train and Validation transformations
-train_transforms1 = transforms.Compose([
+train_transforms = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
     transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
-])
-
-# Train and Validation transformations
-train_transforms2 = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize images to 224x224
     transforms.RandomGrayscale(p=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
-])
-# Train and Validation transformations
-train_transforms3 = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize images to 224x224
     transforms.ColorJitter(brightness=0.2, contrast=0.2),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
@@ -117,7 +104,7 @@ print(f"Validation set size: {len(val_images)}")
 print(f"Test set size: {len(test_images)}")
 
 # Create dataset instances with appropriate transforms
-train_dataset1 = CustomImageDataset([i[0] for i in train_images], [i[1] for i in train_images], transform=train_transforms)
+train_dataset = CustomImageDataset([i[0] for i in train_images], [i[1] for i in train_images], transform=train_transforms)
 val_dataset = CustomImageDataset([i[0] for i in val_images], [i[1] for i in val_images], transform=train_transforms)
 test_dataset = CustomImageDataset([i[0] for i in test_images], [i[1] for i in test_images], transform=test_transforms)
 
