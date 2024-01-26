@@ -60,21 +60,8 @@ print(f"Total images loaded: {len(images)}")
 train_transforms1 = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize images to 224x224
     transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
-])
-
-# Train and Validation transformations
-train_transforms2 = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize images to 224x224
-    transforms.RandomGrayscale(p=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
-])
-# Train and Validation transformations
-train_transforms3 = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize images to 224x224
     transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.RandomGrayscale(p=0.1),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
 ])
