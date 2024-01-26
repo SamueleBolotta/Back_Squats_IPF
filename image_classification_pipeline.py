@@ -62,6 +62,7 @@ train_transforms = transforms.Compose([
     transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),
     transforms.RandomGrayscale(p=0.1),
     transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    transforms.RandomGrayscale(p=0.1),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
 ])
