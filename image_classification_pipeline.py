@@ -57,13 +57,38 @@ images, labels = collect_images_labels(dataset_path, new_labels)
 print(f"Total images loaded: {len(images)}")
 
 # Train and Validation transformations
-train_transforms1 = transforms.Compose([
-    transforms.Resize((224, 224)),  # Resize images to 224x224
-    transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2),
-    transforms.RandomGrayscale(p=0.1),
+# Define image transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize to 224x224 pixels
+    transforms.RandomPerspective(distortion_scale=0.2, p=0.5, fill=0),  # Random perspective
+    transforms.RandomGrayscale(p=0.1),  # Convert to grayscale with 10% probability
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),  # Adjust brightness & contrast
+    transforms.ToTensor()
+])
+
+# Common transformations for all pipelines
+common_transforms = [
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+]
+
+# Adjusted pipelines
+transform1 = transforms.Compose([
+    transforms.RandomPerspective(distortion_scale=0.4, p=0.5, fill=0),
+    *common_transforms
+])
+
+transform2 = transforms.Compose([
+    transforms.ColorJitter(brightness=0.5, contrast=0.4),
+    transforms.RandomApply([transforms.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0))], p=0.1),
+    *common_transforms
+])
+
+transform3 = transforms.Compose([
+    transforms.RandomGrayscale(p=0.1),
+    *common_transforms
 ])
 
 # Test transformations
@@ -74,21 +99,44 @@ test_transforms = transforms.Compose([
 ])
 
 class CustomImageDataset(Dataset):
-    def __init__(self, image_paths, labels, transform=None):
-        self.image_paths = image_paths
+    def __init__(self, image_paths, labels, transform, transform1=None, transform2=None, transform3=None):
+        self.original_images = image_paths
         self.labels = labels
         self.transform = transform
+        self.transform1 = transform1
+        self.transform2 = transform2
+        self.transform3 = transform3
+
+        # If additional transforms are not provided, use only the original transform
+        self.use_single_transform = transform1 is None and transform2 is None and transform3 is None
 
     def __len__(self):
-        return len(self.image_paths)
+        if self.use_single_transform:
+            return len(self.original_images)
+        else:
+            return len(self.original_images) * 4
 
     def __getitem__(self, idx):
-        image_path = self.image_paths[idx]
-        label = self.labels[idx]
+        # Select the original index for the image and label
+        original_idx = idx // 4 if not self.use_single_transform else idx
+        image_path = self.original_images[original_idx]
+        label = self.labels[original_idx]
+        
+        # Open image and convert to RGB
         image = Image.open(image_path).convert('RGB')
-        if self.transform:
+
+        # Apply the appropriate transformation
+        if self.use_single_transform or idx % 4 == 0:
             image = self.transform(image)
+        elif idx % 4 == 1:
+            image = self.transform1(image) if self.transform1 else image
+        elif idx % 4 == 2:
+            image = self.transform2(image) if self.transform2 else image
+        elif idx % 4 == 3:
+            image = self.transform3(image) if self.transform3 else image
+
         return image, label
+
     
 # Calculate sizes for train, val, test
 total_size = len(images)
@@ -104,42 +152,64 @@ print(f"Validation set size: {len(val_images)}")
 print(f"Test set size: {len(test_images)}")
 
 # Create dataset instances with appropriate transforms
-train_dataset1 = CustomImageDataset([i[0] for i in train_images], [i[1] for i in train_images], transform=train_transforms)
-val_dataset = CustomImageDataset([i[0] for i in val_images], [i[1] for i in val_images], transform=train_transforms)
-test_dataset = CustomImageDataset([i[0] for i in test_images], [i[1] for i in test_images], transform=test_transforms)
+train_dataset = CustomImageDataset([i[0] for i in train_images], [i[1] for i in train_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
+val_dataset = CustomImageDataset([i[0] for i in val_images], [i[1] for i in val_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
+test_dataset = CustomImageDataset([i[0] for i in test_images], [i[1] for i in test_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
+
+# After creating the dataset instances
+new_train_size = len(train_dataset)
+new_val_size = len(val_dataset)
+new_test_size = len(test_dataset)
+
+print(f"New Training set size after transformations: {new_train_size}")
+print(f"New Validation set size after transformations: {new_val_size}")
+print(f"New Test set size after transformations: {new_test_size}")
 
 # Define the batch size and create DataLoaders
 batch_size = 32
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-# Load the pretrained model
+from torchvision.models import alexnet, AlexNet_Weights
+
+# Load the pretrained AlexNet model 
 model = models.resnet18(weights='IMAGENET1K_V1')
-#Three outputs: above parallel, parallel, below parallel
+
+# Modify the fully connected layer to include Dropout and Batch Normalization
 model.fc = nn.Sequential(
-    nn.Linear(512, 256),
-    nn.ReLU(),
-    nn.Linear(256, 3)
+    nn.Dropout(),
+    nn.Linear(512, 4096),  # First linear layer after global average pooling
+    nn.ReLU(inplace=True),
+    nn.BatchNorm1d(4096),
+    nn.Dropout(),
+    nn.Linear(4096, 4096),  # Second linear layer
+    nn.ReLU(inplace=True),
+    nn.BatchNorm1d(4096),
+    nn.Linear(4096, 3)  # Output layer for 3 classes
 )
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Freeze the parameters
+# Freeze all layers
+for param in model.parameters():
+    param.requires_grad = False
+
+# Unfreeze the layers in fc
 for param in model.fc.parameters():
     param.requires_grad = True
 
-model = model.to(device)
 
+model = model.to(device)
 
 # Define the loss function and the optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.fc.parameters())
-
+optimizer = optim.Adam(model.parameters(), lr=0.000005, weight_decay=5e-4)  # Reduced learning rate and increased weight decay
 # Define the number of epochs
 n_epochs = 50
 
-# Define the learning rate scheduler
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+# Change to ReduceLROnPlateau scheduler
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
 
 # Initialize lists to store losses for plotting
 train_losses = []
@@ -212,7 +282,7 @@ for epoch in range(n_epochs):
             print("Early stopping triggered")
             break
 
-    scheduler.step()  # Adjust the learning rate
+    scheduler.step(avg_val_loss) # Adjust the learning rate
 
 import matplotlib.pyplot as plt
 # Plotting Training and Validation Loss
@@ -234,7 +304,6 @@ plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
 plt.legend()
 plt.show()
-
 
 # Load the best model for testing
 model.load_state_dict(torch.load('best_model.pth'))
