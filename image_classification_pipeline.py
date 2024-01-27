@@ -2,6 +2,7 @@ import os
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader, random_split
+from sklearn.model_selection import KFold
 import torch
 from torchvision import models
 import torch.nn as nn
@@ -140,35 +141,34 @@ class CustomImageDataset(Dataset):
     
 # Calculate sizes for train, val, test
 total_size = len(images)
-train_size = int(0.7 * total_size)
-val_size = int(0.15 * total_size)
-test_size = total_size - train_size - val_size
+train_size = int(0.85 * total_size)
+test_size = total_size - train_size
 
 # Splitting the dataset
-train_images, val_images, test_images = random_split(list(zip(images, labels)), [train_size, val_size, test_size])
+train_images, test_images = random_split(list(zip(images, labels)), [train_size, test_size])
 
 print(f"Training set size: {len(train_images)}")
-print(f"Validation set size: {len(val_images)}")
+# print(f"Validation set size: {len(val_images)}")
 print(f"Test set size: {len(test_images)}")
 
 # Create dataset instances with appropriate transforms
 train_dataset = CustomImageDataset([i[0] for i in train_images], [i[1] for i in train_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
-val_dataset = CustomImageDataset([i[0] for i in val_images], [i[1] for i in val_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
+# val_dataset = CustomImageDataset([i[0] for i in val_images], [i[1] for i in val_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
 test_dataset = CustomImageDataset([i[0] for i in test_images], [i[1] for i in test_images], transform=transform, transform1=transform1, transform2=transform2, transform3=transform3)
 
 # After creating the dataset instances
 new_train_size = len(train_dataset)
-new_val_size = len(val_dataset)
+# new_val_size = len(val_dataset)
 new_test_size = len(test_dataset)
 
 print(f"New Training set size after transformations: {new_train_size}")
-print(f"New Validation set size after transformations: {new_val_size}")
+# print(f"New Validation set size after transformations: {new_val_size}")
 print(f"New Test set size after transformations: {new_test_size}")
 
 # Define the batch size and create DataLoaders
 batch_size = 32
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+# val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 from torchvision.models import alexnet, AlexNet_Weights
@@ -204,9 +204,9 @@ model = model.to(device)
 
 # Define the loss function and the optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.000005, weight_decay=5e-4)  # Reduced learning rate and increased weight decay
+optimizer = optim.Adam(model.parameters(), lr=0.001)  # Reduced learning rate and increased weight decay
 # Define the number of epochs
-n_epochs = 50
+n_epochs = 1
 
 # Change to ReduceLROnPlateau scheduler
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
@@ -223,12 +223,23 @@ best_val_accuracy = 0
 patience = 10  # Number of epochs to wait for improvement
 counter = 0  # Counter for early stopping
 
-for epoch in range(n_epochs):
+# Split the data into k folds
+k = 20
+kf = KFold(n_splits=k, shuffle=True, random_state=42)
+print(f"Fold size: {len(train_dataset)//k}")
+for fold, (train_idx, val_idx) in enumerate(kf.split(train_loader.dataset)):
+    train_sampler = torch.torch.utils.data.SubsetRandomSampler(train_idx)
+    val_sampler = torch.torch.utils.data.SubsetRandomSampler(val_idx)
+
+    train_loader_fold = torch.utils.data.DataLoader(train_loader.dataset, batch_size=batch_size, sampler=train_sampler)
+    val_loader_fold = torch.utils.data.DataLoader(train_loader.dataset, batch_size=batch_size, sampler=val_sampler)
+
+    # for epoch in range(n_epochs):
     model.train()  # Set the model to training mode
     total_train_loss = 0
     total_train_correct = 0
 
-    for images, labels in train_loader:
+    for images, labels in train_loader_fold:
         images = images.to(device)
         labels = labels.to(device)
         
@@ -242,20 +253,20 @@ for epoch in range(n_epochs):
         _, predicted = torch.max(outputs.data, 1)
         total_train_correct += (predicted == labels).sum().item()
 
-    avg_train_loss = total_train_loss / len(train_loader)
-    train_accuracy = total_train_correct / len(train_loader.dataset)
+    avg_train_loss = total_train_loss / len(train_loader_fold)
+    train_accuracy = total_train_correct / len(train_loader_fold.dataset)
     train_losses.append(avg_train_loss)
 
     train_accuracies.append(train_accuracy)
 
-    print(f'Epoch [{epoch+1}/{n_epochs}], Train Loss: {avg_train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}')
+    print(f'Fold [{fold+1}/{k}], Train Loss: {avg_train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}')
 
     model.eval()  # Set the model to evaluation mode
     total_val_loss = 0
     total_val_correct = 0
 
     with torch.no_grad():
-        for images, labels in val_loader:
+        for images, labels in val_loader_fold:
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -264,12 +275,12 @@ for epoch in range(n_epochs):
             _, predicted = torch.max(outputs.data, 1)
             total_val_correct += (predicted == labels).sum().item()
 
-    avg_val_loss = total_val_loss / len(val_loader)
-    val_accuracy = total_val_correct / len(val_loader.dataset)
+    avg_val_loss = total_val_loss / len(val_loader_fold)
+    val_accuracy = total_val_correct / len(val_loader_fold.dataset)
     val_losses.append(avg_val_loss)
     val_accuracies.append(val_accuracy)
     
-    print(f'Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}')
+    print(f'\t\tValidation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}')
 
     # Early stopping
     if val_accuracy > best_val_accuracy:
