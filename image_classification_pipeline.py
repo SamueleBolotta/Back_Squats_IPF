@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import models
 from torchvision import transforms
-from utils import CustomImageDataset
+from utils.utils import CustomImageDataset
 from torch.utils.data import DataLoader, random_split
-from utils import custom_collate, plot_losses, visualize_transformations
+from utils.utils import custom_collate, plot_losses, visualize_transformations
 import os
 from PIL import Image
 from torchvision import transforms
@@ -65,7 +65,7 @@ for sex in ("Men", "Women"):
                         transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
     # Create CSV file
     # Path to your dataset (including augmented images)
-    dataset_path = '/home/samuele/Documenti/GitHub/Back_Squats_IPF/dataset'
+    dataset_path = '/home/juancm/trento/SIV/copy_siv/Back_Squats_IPF/dataset'
 
     # Traverse the directory structure
     for root, dirs, files in os.walk(dataset_path):
@@ -124,13 +124,18 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 # Set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = models.resnet50(pretrained=True)
-# Modify the classifier head to match the number of classes in your dataset
+# Load the pretrained model
+model = models.resnet18(weights='IMAGENET1K_V1')
+
+# Freeze the parameters
+for param in model.parameters():
+    param.requires_grad = False
+
+#Three outputs: above parallel, parallel, below parallel
 model.fc = nn.Sequential(
-    nn.Linear(2048, 256),
+    nn.Linear(512, 256),
     nn.ReLU(),
-    nn.Dropout(0.5),  # Add dropout for regularization
-    nn.Linear(256, 3)  # Assuming you have 3 classes
+    nn.Linear(256, 3)
 )
 
 # Transfer the model to the GPU
@@ -138,15 +143,13 @@ model.to(device)
 
 # Define the loss function and the optimizer
 criterion = nn.CrossEntropyLoss()
-learning_rate = 0.001
-optimizer = optim.Adam(model.fc.parameters(), lr=learning_rate, weight_decay=1e-4)
+optimizer = optim.Adam(model.fc.parameters())
 
 # Define the number of epochs
 n_epochs = 50
 
 # Define the learning rate scheduler
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 # Initialize lists to store losses for plotting
 train_losses = []
@@ -298,15 +301,3 @@ model.load_state_dict(torch.load('model.pt'))
 # Call the function with the provided lists of train_losses and val_losses
 plot_losses(train_losses, val_losses)
 
-from sklearn.metrics import precision_score, recall_score, f1_score
-
-# Inside your test loop, calculate precision, recall, and F1-score
-predictions = torch.argmax(output, dim=1).cpu().numpy()
-targets = target.cpu().numpy()
-
-precision = precision_score(targets, predictions, average='weighted')
-recall = recall_score(targets, predictions, average='weighted')
-f1 = f1_score(targets, predictions, average='weighted')
-
-# Print the additional metrics
-print(f'Precision: {precision:.4f} | Recall: {recall:.4f} | F1-score: {f1:.4f}')
