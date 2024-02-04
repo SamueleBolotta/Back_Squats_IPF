@@ -30,6 +30,9 @@ Before you begin, ensure you have the following prerequisites installed on your 
 # Navigate to your project directory
     cd path/to/your/project
 
+# Clone repository
+    git clone https://github.com/SamueleBolotta/Back_Squats_IPF.git
+
 # Install project-specific dependencies (modify as needed)
     pip install -r requirements.txt
 
