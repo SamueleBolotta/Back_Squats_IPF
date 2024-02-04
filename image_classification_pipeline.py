@@ -65,7 +65,7 @@ for sex in ("Men", "Women"):
                         transformed_image.save(os.path.join(path_with_label, f'{i}_{file}'))
     # Create CSV file
     # Path to your dataset (including augmented images)
-    dataset_path = '/home/juancm/trento/SIV/copy_siv/Back_Squats_IPF/dataset'
+    dataset_path = f'{current_dir}/dataset/'
 
     # Traverse the directory structure
     for root, dirs, files in os.walk(dataset_path):
