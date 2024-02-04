@@ -38,7 +38,7 @@ Before you begin, ensure you have the following prerequisites installed on your 
 
 # Run the main file
 
-    python3 image_classification_pipeline.py
+    python3 main.py
 
 ## Contact
 juan.camachomohedano@studenti.unitn.it
